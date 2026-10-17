@@ -104,18 +104,20 @@ function show(k){
   var bn=document.getElementById('bigNum'); bn.style.color=m.color;
   bn.innerHTML=(k==="buffett"?last.toFixed(2):last)+"<small>"+m.unit+"</small>";
   document.getElementById("bigStat").innerHTML=m.desc.replace("@@HI@@",ST[k][0]+" · "+ST[k][1]).replace("@@LO@@",ST[k][2]+" · "+ST[k][3]);
-  chart.setOption({yAxis:{axisLabel:{formatter:k==="amount"?"{value}":(k==="avgPrice"?"{value} 元":"{value}%"),color:m.color,fontSize:11}},
+  chart.setOption({
+    animation:false,
+    grid:{left:60,right:20,top:30,bottom:44},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross',label:{show:false}},
+      formatter:function(ps){var p=ps[0];var d=new Date(p.value[0]);
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+          +'<br>'+p.marker+META[cur].name+'：<b>'+META[cur].fmt(p.value[1])+'</b>';}},
+    xAxis:{type:'time',axisLine:{lineStyle:{color:'#ddd'}},axisLabel:{color:'#999',fontSize:11}},
+    yAxis:{type:'value',scale:true,axisLabel:{formatter:k==="amount"?"{value}":(k==="avgPrice"?"{value} 元":"{value}%"),color:m.color,fontSize:11},splitLine:{lineStyle:{color:'#f2f2f2'}}},
     series:[{name:m.name,type:"line",data:seriesOf(k),showSymbol:false,
       lineStyle:{width:1.8,color:m.color},itemStyle:{color:m.color},areaStyle:{opacity:.10}}]},true);
   applyRange(document.querySelector('button[data-r].on').dataset.r);
 }
-chart.setOption({animation:false,grid:{left:60,right:20,top:30,bottom:44},
-  tooltip:{trigger:'axis',axisPointer:{type:'cross',label:{show:false}},
-    formatter:function(ps){var p=ps[0];var d=new Date(p.value[0]);
-      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
-        +'<br>'+p.marker+META[cur].name+'：<b>'+META[cur].fmt(p.value[1])+'</b>';}},
-  xAxis:{type:'time',axisLine:{lineStyle:{color:'#ddd'}},axisLabel:{color:'#999',fontSize:11}},
-  yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:'#f2f2f2'}}}});
+
 function applyRange(r){
   var d=P[cur], max=d.base+d.days[d.days.length-1]*86400000, m={'1y':365,'3y':1096,'5y':1827};
   chart.setOption({xAxis:{min:r==='all'?null:max-m[r]*86400000,max:max}});
