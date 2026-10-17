@@ -54,6 +54,22 @@ def append_jl(fn, rec):
         for d in sorted(rows): f.write(json.dumps(rows[d], ensure_ascii=False) + "\n")
     return rows
 
+
+def em_avg_price():
+    """东方财富 800005 A股平均股价指数（精确口径）"""
+    for secid in ("0.800005", "1.800005", "90.800005"):
+        try:
+            url = (f"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={secid}"
+                   "&fields1=f1,f2,f3&fields2=f51,f52,f53&klt=101&fqt=0&beg=0&end=20500101&lmt=1000000")
+            d = json.loads(urllib.request.urlopen(urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"}), timeout=30).read())
+            kl = (d.get("data") or {}).get("klines") or []
+            if kl:
+                return [(k.split(",")[0], round(float(k.split(",")[2]), 2)) for k in kl]
+        except Exception:
+            continue
+    return []
+
 def main():
     today = datetime.date.today().strftime("%Y-%m-%d")
     P = {}
@@ -80,6 +96,12 @@ def main():
     if snap:
         avg_rows[today] = snap["avgPrice"]
         amt_rows[today] = round(snap["totalYi"] / 10000, 3)
+    # 东财 800005 精确平均股价：成功则全量替换（抽样基线升级精确口径）
+    em = em_avg_price()
+    if em:
+        avg_rows = dict(em)
+        if snap: avg_rows[today] = snap["avgPrice"]
+        print("东财800005精确数据已接入:", len(em), "条")
     with open(os.path.join(STATE, "avg_price.jsonl"), "w", encoding="utf-8") as f:
         for dd in sorted(avg_rows): f.write(json.dumps({"date": dd, "v": avg_rows[dd]}) + "\n")
     with open(os.path.join(STATE, "amount.jsonl"), "w", encoding="utf-8") as f:
