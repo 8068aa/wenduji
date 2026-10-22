@@ -76,9 +76,12 @@ def main():
     # ① 巴菲特
     d = legulegu({"b": "/api/stockdata/marketcap-gdp/get-marketcap-gdp"})
     if "b" in d:
-        buff = ast.literal_eval(d["b"]["data"])
+        raw = d["b"]["data"]
+        # 接口有时直接返回已解析的列表，ast.literal_eval 只处理字符串
+        buff = ast.literal_eval(raw) if isinstance(raw, str) else raw
         S = [[ts(x["date"]), round(x["marketCap"] / x["gdp"] * 100, 2)] for x in buff if x.get("gdp")]
-        P["buffett"] = {"base": S[0][0], "days": [(x[0] - S[0][0]) // 86400000 for x in S], "val": [x[1] for x in S]}
+        if S:
+            P["buffett"] = {"base": S[0][0], "days": [(x[0] - S[0][0]) // 86400000 for x in S], "val": [x[1] for x in S]}
     # ② 成交额基线(乐咕拥挤度接口) + ③ 新浪每日：平均股价&成交额
     avg_rows, amt_rows = {}, {}
     if os.path.exists(os.path.join(STATE, "avg_price.jsonl")):
@@ -111,6 +114,18 @@ def main():
         return {"base": ts(ks[0]), "days": [(ts(k) - ts(ks[0])) // 86400000 for k in ks], "val": [rows[k] for k in ks]}
     P["avgPrice"] = pack(avg_rows)
     P["amount"] = pack(amt_rows)
+    # 重写 index.html（先读出旧数据，某数据源失败时沿用上次序列，避免图表清空）
+    h = open(os.path.join(BASE, "index.html"), encoding="utf-8").read()
+    m = re.search(r"var P = (\{.*?\}), ST = (\{.*?\});\s*var META", h, flags=re.S)
+    if m:
+        try:
+            oldP = json.loads(m.group(1))
+            for k in ("buffett", "amount", "avgPrice"):
+                if k not in P and k in oldP:
+                    P[k] = oldP[k]
+                    print(f"警告：{k} 数据源失败，沿用上次数据")
+        except Exception as e:
+            print("警告：无法解析旧数据（%s）" % e)
     # 统计
     ST = {}
     for k in ("buffett", "amount", "avgPrice"):
